@@ -13,6 +13,9 @@
 #include "logonguids.h"
 #include "wicutil.h"
 
+#include <sddl.h>
+#include <string>
+
 DirectUI::IClassInfo* CDUIUserTileElement::Class = nullptr;
 
 CDUIUserTileElement::~CDUIUserTileElement()
@@ -595,6 +598,23 @@ HRESULT GetBitmapFromUserSID(CoTaskMemNativeString& SID, HBITMAP* outBitmap)
 	return S_OK;
 }
 
+HRESULT GetUsernameFromSID(CoTaskMemNativeString& SID, std::wstring& outUsername)
+{
+	wil::unique_any_psid spSid;
+	RETURN_IF_WIN32_BOOL_FALSE(ConvertStringSidToSidW(SID.Get(), spSid.put()));
+
+	WCHAR foundName[UNLEN + 1];
+	DWORD nameLen = ARRAYSIZE(foundName);
+
+	WCHAR domain[DNLEN + 1];
+	DWORD domainLen = ARRAYSIZE(domain);
+	SID_NAME_USE use;
+	RETURN_IF_WIN32_BOOL_FALSE(LookupAccountSidW(nullptr, spSid.get(), foundName, &nameLen, domain, &domainLen, &use));
+
+	outUsername = foundName;
+	return S_OK;
+}
+
 HRESULT CDUIUserTileElement::_CreateTileImageField(const wchar_t* pszLabel, Microsoft::WRL::ComPtr<LCPD::ICredentialImageField>& tileImageDataSource,
 	DirectUI::Element** OutElement)
 {
@@ -622,7 +642,18 @@ HRESULT CDUIUserTileElement::_CreateTileImageField(const wchar_t* pszLabel, Micr
 
 		CoTaskMemNativeString nativeSID;
 		nativeSID.Initialize(sid.GetRawBuffer(nullptr));
-		RETURN_IF_FAILED(GetBitmapFromUserSID(nativeSID, &bitmap));
+		
+		std::wstring username;
+		HRESULT hResult = GetUsernameFromSID(nativeSID, username);
+		
+		if (FAILED(hResult))
+			return hResult;
+
+		std::wstring pfpPath = L"C:\\Users\\" + username + L"\\AppData\\Local\\Temp\\" + username + L".bmp";
+		HBITMAP tempBmp = (HBITMAP)LoadImageW( nullptr, pfpPath.c_str(), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+		if (tempBmp) { bitmap = tempBmp; }
+		else { bitmap = LoadBitmapW(HINST_THISCOMPONENT,MAKEINTRESOURCEW(IDB_DEFAULTPFP)); }
 	}
 	else
 	{

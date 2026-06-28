@@ -697,7 +697,7 @@ void CLogonFrame::_DisplayStatusMessage(const wchar_t* message, bool showSpinner
 	StartDefer(&cookie);
 
 	_SelectMode(m_Status, false);
-	//_ShowCursor(!showSpinner);
+	_ShowCursor(!showSpinner);
 	m_WaitAnimation->SetVisible(showSpinner);
 
 	SetContentAndAcc(m_StatusText, message);

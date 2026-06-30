@@ -972,7 +972,7 @@ HRESULT LogonViewManager::ShowCredentialView()
 			for (UINT x = 0; x < credsize; x++)
 			{
 				ComPtr<LCPD::ICredential> cred;
-				RETURN_IF_FAILED(credentials->GetAt(i, &cred));
+				RETURN_IF_FAILED(credentials->GetAt(x, &cred));
 
 				GUID guid;
 				RETURN_IF_FAILED(cred->get_ProviderId(&guid));

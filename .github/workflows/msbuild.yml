@@ -31,3 +31,10 @@ jobs:
 
     - name: Build
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Upload AuthUX.dll
+      uses: actions/upload-artifact@v4
+      with:
+        name: AuthUX-${{env.BUILD_CONFIGURATION}}-${{env.BUILD_PLATFORM}}
+        path: ${{env.BUILD_PLATFORM}}/${{env.BUILD_CONFIGURATION}}/AuthUX.dll
+        if-no-files-found: error

@@ -321,6 +321,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Log.cpp" />
     <ClCompile Include="sdk\inc\logonguids.cpp" />
     <ClCompile Include="sdk\inc\NotificationDispatcher.cpp" />
     <ClCompile Include="sdk\inc\wicutil.cpp" />
@@ -352,6 +353,7 @@
     <ClCompile Include="shell\auth\authux\consolelogon\lib\zoomableelement.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Log.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="sdk\inc\AgileGitPtr.h" />
     <ClInclude Include="sdk\inc\AssertMacros.h" />

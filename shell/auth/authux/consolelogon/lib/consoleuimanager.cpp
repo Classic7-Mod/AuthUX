@@ -11,6 +11,8 @@
 #include "ShellScalingApi.h"
 #include "zoomableelement.h"
 
+#include "Log.h"
+
 using namespace Microsoft::WRL;
 
 ConsoleUIManager::ConsoleUIManager()
@@ -27,6 +29,7 @@ HRESULT ConsoleUIManager::Initialize()
 
 HRESULT ConsoleUIManager::StartUI()
 {
+	LOG_SCOPE();
 	auto scopeExit = wil::scope_exit([this]() -> void { StopUI(); });
 
 	Wrappers::SRWLock::SyncLockExclusive lock = m_lock.LockExclusive();
@@ -38,12 +41,14 @@ HRESULT ConsoleUIManager::StartUI()
 
 		m_UIThreadQuitEvent = std::move(quitEvent);
 
+		LOG_TRACE(L"StartUI: creating UI thread");
 		RETURN_IF_WIN32_BOOL_FALSE(SHCreateThreadWithHandle(
 			s_UIThreadHostThreadProc,
 			this,
 			CTF_COINIT,
 			s_UIThreadHostStartThreadProc,
 			&m_UIThreadHandle)); // 52
+		LOG_TRACE(L"StartUI: UI thread created, init result 0x%08X", m_UIThreadInitResult);
 	}
 
 	scopeExit.release();
@@ -84,9 +89,11 @@ DWORD ConsoleUIManager::s_UIThreadHostStartThreadProc(void* parameter)
 
 HRESULT ConsoleUIManager::UIThreadHostStartThreadProc()
 {
+	LOG_SCOPE();
 	HRESULT hr;
 	auto scopeExit = wil::scope_exit([&]() -> void { m_UIThreadInitResult = hr; });
 
+	LOG_TRACE(L"UIThreadHostStartThreadProc: making notification dispatcher");
 	RETURN_IF_FAILED(hr = MakeNotificationDispatcher<CNotificationDispatcher>(&m_Dispatcher)); // 219
 
 	return S_OK;
@@ -107,17 +114,22 @@ DWORD ConsoleUIManager::s_UIThreadHostThreadProc(void* parameter)
 
 DWORD ConsoleUIManager::UIThreadHostThreadProc()
 {
+	LOG_SCOPE();
 	DWORD dwIndex = WAIT_IO_COMPLETION;
 
 	HANDLE waitHandles[] = { m_UIThreadQuitEvent.get() };
 
 	SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 	CoInitializeEx(nullptr, 0);
+	LOG_TRACE(L"UIThreadHostThreadProc: DirectUI::InitProcessPriv");
 	DirectUI::InitProcessPriv(14, HINST_THISCOMPONENT, false, true, true);
 
+	LOG_TRACE(L"UIThreadHostThreadProc: DirectUI::InitThread");
 	DirectUI::InitThread(2);
+	LOG_TRACE(L"UIThreadHostThreadProc: DirectUI::RegisterAllControls");
 	DirectUI::RegisterAllControls();
 
+	LOG_TRACE(L"UIThreadHostThreadProc: registering custom controls");
 	CDUIAnimationStrip::Register();
 	CLogonFrame::Register();
 	CDUIUserTileElement::Register();
@@ -128,15 +140,18 @@ DWORD ConsoleUIManager::UIThreadHostThreadProc()
 	CDUIFieldContainer::Register();
 	CDUILabeledCheckbox::Register();
 
+	LOG_TRACE(L"UIThreadHostThreadProc: creating native HWND host");
 	CLogonNativeHWNDHost* nativeHWNDHost = nullptr;
-	THROW_IF_FAILED(CLogonNativeHWNDHost::Create(0,0,GetSystemMetrics(SM_CXSCREEN),GetSystemMetrics(SM_CYSCREEN),&nativeHWNDHost));
+	THROW_IF_FAILED(CLogonNativeHWNDHost::Create(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), &nativeHWNDHost));
 
+	LOG_TRACE(L"UIThreadHostThreadProc: creating logon frame");
 	CLogonFrame::Create(nativeHWNDHost);
 
+	LOG_TRACE(L"UIThreadHostThreadProc: entering message loop");
 	while (dwIndex == WAIT_IO_COMPLETION)
 	{
-		MSG Msg {};
-		while ( PeekMessageW(&Msg, nullptr, 0, 0, PM_REMOVE) )
+		MSG Msg{};
+		while (PeekMessageW(&Msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			if (Msg.message == WM_QUIT)
 			{

@@ -607,6 +607,7 @@ HRESULT LogonViewManager::RequestCredentialsUIThread(
 	LC::LogonUIRequestReason reason, LC::LogonUIFlags flags, HSTRING unk,
 	WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IRequestCredentialsData>> completion)
 {
+	LOG_SCOPE();
 	auto completeOnFailure = wil::scope_exit([this]() -> void { m_requestCredentialsComplete->Complete(E_UNEXPECTED); });
 
 	//if (m_unlockTrigger.Get())
@@ -619,6 +620,7 @@ HRESULT LogonViewManager::RequestCredentialsUIThread(
 	m_requestCredentialsComplete = wil::make_unique_nothrow<WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IRequestCredentialsData>>>(completion);
 	RETURN_IF_NULL_ALLOC(m_requestCredentialsComplete); // 598
 
+	AuthLog::Write(L"RequestCredentialsUIThread: reason=%d hasCachedSerialization=%d", reason, m_cachedSerialization.Get() ? 1 : 0);
 	if (m_cachedSerialization.Get())
 	{
 		ComPtr<LC::IRequestCredentialsDataFactory> factory;
@@ -1114,6 +1116,8 @@ HRESULT LogonViewManager::ShowSerializationFailedView(HSTRING caption, HSTRING m
 
 HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason reason, BOOLEAN allowDirectUserSwitching, HSTRING unk)
 {
+	LOG_SCOPE();
+	AuthLog::Write(L"StartCredProvsIfNecessary: reason=%d hasModel=%d resetRequired=%d initialized=%d", reason, m_credProvDataModel.Get() ? 1 : 0, m_isCredentialResetRequired ? 1 : 0, m_credProvInitialized ? 1 : 0);
 	LCPD::CredProvScenario scenario = LCPD::CredProvScenario_Logon;
 	if (reason == LC::LogonUIRequestReason_LogonUIUnlock)
 	{
@@ -1201,6 +1205,7 @@ HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason rea
 	ComPtr<WF::IAsyncAction> initAction;
 	LANGID langID = 0;
 	RETURN_IF_FAILED(m_userSettingManager->get_LangID(&langID)); // 1098
+	AuthLog::Write(L"StartCredProvsIfNecessary: calling InitializeAsync");
 #if CONSOLELOGON_FOR >= CONSOLELOGON_FOR_19h1
 	RETURN_IF_FAILED(m_credProvDataModel->InitializeAsync(scenario, LCPD::SupportedFeatureFlags_0, langID, unk, &initAction)); // 1099
 #else
@@ -1212,6 +1217,7 @@ HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason rea
 	HRESULT hr = StartOperationAndThen<WF::IAsyncActionCompletedHandler>(initAction.Get(), [thisRef, this](HRESULT hrAction, WF::IAsyncAction* asyncOp) -> HRESULT
 		{
 			UNREFERENCED_PARAMETER(thisRef);
+			AuthLog::Write(L"InitializeAsync completed, hr=0x%08X", hrAction);
 			auto completeOnFailure = wil::scope_exit([this]() -> void
 				{
 					if (m_requestCredentialsComplete)
@@ -1234,8 +1240,16 @@ HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason rea
 
 HRESULT LogonViewManager::OnCredProvInitComplete()
 {
+	LOG_SCOPE();
 	ComPtr<WFC::IObservableVector<IInspectable*>> usersAndV1Creds;
 	RETURN_IF_FAILED(m_credProvDataModel->get_UsersAndV1Credentials(&usersAndV1Creds)); // 1177
+
+	UINT userCount = 0;
+	ComPtr<WFC::IVector<IInspectable*>> usersVector;
+	if (SUCCEEDED(usersAndV1Creds.As(&usersVector)))
+		usersVector->get_Size(&userCount);
+	AuthLog::Write(L"OnCredProvInitComplete: showOnInit=%d users=%u", m_showCredentialViewOnInitComplete ? 1 : 0, userCount);
+
 	RETURN_IF_FAILED(usersAndV1Creds->add_VectorChanged(this, &m_usersChangedToken)); // 1178
 	RETURN_IF_FAILED(m_credProvDataModel->add_SelectedUserOrV1CredentialChanged(this, &m_selectedUserChangeToken)); // 1179
 	if (m_showCredentialViewOnInitComplete)

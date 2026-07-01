@@ -1206,17 +1206,20 @@ HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason rea
 	LANGID langID = 0;
 	RETURN_IF_FAILED(m_userSettingManager->get_LangID(&langID)); // 1098
 	AuthLog::Write(L"StartCredProvsIfNecessary: calling InitializeAsync");
+	AuthLog::DumpCredentialProviders();
 #if CONSOLELOGON_FOR >= CONSOLELOGON_FOR_19h1
 	RETURN_IF_FAILED(m_credProvDataModel->InitializeAsync(scenario, LCPD::SupportedFeatureFlags_0, langID, unk, &initAction)); // 1099
 #else
 	RETURN_IF_FAILED(m_credProvDataModel->InitializeAsync(scenario, LCPD::SupportedFeatureFlags_0, langID, &initAction)); // 1099
 #endif
+	AuthLog::ArmWatchdog(L"InitializeAsync", 20000);
 
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = StartOperationAndThen<WF::IAsyncActionCompletedHandler>(initAction.Get(), [thisRef, this](HRESULT hrAction, WF::IAsyncAction* asyncOp) -> HRESULT
 		{
 			UNREFERENCED_PARAMETER(thisRef);
+			AuthLog::DisarmWatchdog();
 			AuthLog::Write(L"InitializeAsync completed, hr=0x%08X", hrAction);
 			auto completeOnFailure = wil::scope_exit([this]() -> void
 				{

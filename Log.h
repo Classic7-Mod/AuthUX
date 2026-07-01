@@ -6,6 +6,9 @@ namespace AuthLog
 {
 	void EnsureInit();
 	void Write(const wchar_t* format, ...);
+	void DumpCredentialProviders();
+	void ArmWatchdog(const wchar_t* label, DWORD timeoutMs);
+	void DisarmWatchdog();
 
 	class Scope
 	{

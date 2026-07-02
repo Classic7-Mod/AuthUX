@@ -3,8 +3,6 @@
 #include "logonviewmanager.h"
 #include "sdk/inc/WaitForCompletion.h"
 
-#include "Log.h"
-
 using namespace Microsoft::WRL;
 
 using namespace ABI::Windows::Foundation;
@@ -16,8 +14,8 @@ extern const __declspec(selectany) _Null_terminated_ WCHAR RuntimeClass_Windows_
 
 class AuthUX final
 	: public RuntimeClass<RuntimeClassFlags<WinRtClassicComMix>
-	, ILogonUX
-	, FtmBase
+		, ILogonUX
+		, FtmBase
 	>
 {
 	InspectableClass(RuntimeClass_Windows_Internal_UI_Logon_Controller_LogonUX, FullTrust);
@@ -40,8 +38,8 @@ public:
 		LogonUIRequestReason reason, BOOLEAN allowDirectUserSwitching, BOOLEAN unk1, BOOLEAN unk2, HSTRING unk3,
 		IUnlockTrigger* unlockTrigger) override;
 	STDMETHODIMP RequestCredentialsAsync(
-		LogonUIRequestReason reason, LogonUIFlags flags, HSTRING unk,
-		IAsyncOperation<RequestCredentialsData*>** ppOperation) override;
+	LogonUIRequestReason reason, LogonUIFlags flags, HSTRING unk,
+	IAsyncOperation<RequestCredentialsData*>** ppOperation) override;
 #else
 	STDMETHODIMP DelayLock(
 		BOOLEAN allowDirectUserSwitching, BOOLEAN unk1, BOOLEAN unk2, IUnlockTrigger* unlockTrigger) override;
@@ -106,7 +104,7 @@ private:
 		typename THandler, // WI::ComTaskPoolHandler
 		typename TLambda // <lambda_3785fc05d0c47cf9a9ab843267e7d6bb>
 	>
-		HRESULT MakeCancellableAsyncOperation(THandler&& handler, IAsyncOperation<TResultRaw>** ppOperation, const TLambda& lambda)
+	HRESULT MakeCancellableAsyncOperation(THandler&& handler, IAsyncOperation<TResultRaw>** ppOperation, const TLambda& lambda)
 	{
 		*ppOperation = nullptr;
 		ComPtr<AuthUX> thisRef = this;
@@ -123,11 +121,11 @@ private:
 			IAsyncOperation<TResultRaw>::z_get_rc_name_impl(),
 			BaseTrust,
 			WI::MakeOperationStagedLambda<TResult>([this, thisRef, lambda](WI::AsyncStage stage, HRESULT hr, TResult& result) -> HRESULT
-				{
-					UNREFERENCED_PARAMETER(thisRef);
-					return CancellableAsyncOperationThreadProc<TResult, TLambda>(stage, hr, result, lambda);
-				})
-			);
+			{
+				UNREFERENCED_PARAMETER(thisRef);
+				return CancellableAsyncOperationThreadProc<TResult, TLambda>(stage, hr, result, lambda);
+			})
+		);
 		RETURN_IF_FAILED(hr); // 462
 		return S_OK;
 	}
@@ -137,7 +135,7 @@ private:
 		typename THandler, // WI::ComTaskPoolHandler
 		typename TLambda // _lambda_fe7b513293bb3593300cd8367b69ca74_
 	>
-		HRESULT MakeCancellableAsyncAction(THandler&& handler, IAsyncAction** ppAction, const TLambda& lambda)
+	HRESULT MakeCancellableAsyncAction(THandler&& handler, IAsyncAction** ppAction, const TLambda& lambda)
 	{
 		*ppAction = nullptr;
 		ComPtr<AuthUX> thisRef = this;
@@ -154,11 +152,11 @@ private:
 			L"Windows.Foundation.IAsyncAction",
 			BaseTrust,
 			WI::MakeOperationStagedLambda<WI::CNoResult>([this, thisRef, lambda](WI::AsyncStage stage, HRESULT hr, WI::CNoResult& result) -> HRESULT
-				{
-					UNREFERENCED_PARAMETER(thisRef);
-					return CancellableAsyncOperationThreadProc<WI::CNoResult, TLambda>(stage, hr, result, lambda);
-				})
-			);
+			{
+				UNREFERENCED_PARAMETER(thisRef);
+				return CancellableAsyncOperationThreadProc<WI::CNoResult, TLambda>(stage, hr, result, lambda);
+			})
+		);
 		RETURN_IF_FAILED(hr); // 475
 		return S_OK;
 	}
@@ -181,18 +179,12 @@ HRESULT AuthUX::Start(
 	IUserSettingManager* userSettingManager, IDisplayStateProvider* displayStateProvider,
 	IBioFeedbackListener* bioFeedbackListener)
 {
-	AuthLog::EnsureInit();
-	LOG_SCOPE();
-
 	Wrappers::SRWLock::SyncLockExclusive lock = m_Lock.LockExclusive();
 	RETURN_IF_FAILED(MakeAndInitialize<LogonViewManager>(&m_consoleUIManager)); // 102
 
-	LOG_TRACE(L"Start: StartUI");
 	RETURN_IF_FAILED(m_consoleUIManager->StartUI()); // 104
 
-	LOG_TRACE(L"Start: SetContext");
 	RETURN_IF_FAILED(m_consoleUIManager->SetContext(autoLogonManager, userSettingManager, redirectionManager, displayStateProvider, bioFeedbackListener)); // 106
-	LOG_TRACE(L"Start: done");
 	return S_OK;
 }
 
@@ -420,7 +412,7 @@ HRESULT AuthUX::DisplayStatusAndForceCredentialPageAsync(
 	LogonUIRequestReason reason, LogonUIFlags flags, HSTRING unk1, LogonUIState state, HSTRING status,
 	IAsyncAction** ppAction)
 {
-	return AuthUX::DisplayStatusAsync(state, status, ppAction);
+	return AuthUX::DisplayStatusAsync(state,status,ppAction);
 }
 #endif
 
@@ -435,9 +427,9 @@ HRESULT AuthUX::TriggerLogonAnimationAsync(IAsyncAction** ppAction)
 		WI::ComTaskPoolHandler(WI::TaskApartment::Any, WI::TaskOptions::SyncNesting),
 		ppAction,
 		[=](WI::CNoResult& result) -> HRESULT
-		{
-			return S_OK;
-		});
+	{
+		return S_OK;
+	});
 	RETURN_IF_FAILED(hr); // 302
 	return S_OK;
 }
@@ -481,13 +473,13 @@ HRESULT AuthUX::ClearUIState(HSTRING statusMessage)
 			L"Windows.Foundation.IAsyncAction",
 			BaseTrust,
 			WI::MakeOperationLambda<WI::CNoResult>([asyncReference, this, viewManager](WI::CNoResult& result) -> HRESULT
-				{
-					UNREFERENCED_PARAMETER(asyncReference);
-					WI::AsyncDeferral<WI::CNoResult> deferral = result.GetDeferral(result);
-					RETURN_IF_FAILED(viewManager->Cleanup(deferral)); // 341
-					return S_OK;
-				})
-			);
+			{
+				UNREFERENCED_PARAMETER(asyncReference);
+				WI::AsyncDeferral<WI::CNoResult> deferral = result.GetDeferral(result);
+				RETURN_IF_FAILED(viewManager->Cleanup(deferral)); // 341
+				return S_OK;
+			})
+		);
 		RETURN_IF_FAILED(hr); // 341
 
 		RETURN_IF_FAILED(WaitForCompletion<IAsyncActionCompletedHandler>(cleanupAction.Get())); // 343
@@ -561,9 +553,9 @@ HRESULT AuthUX::Hide()
 
 HRESULT AuthUX::Stop()
 {
-	HANDLE logFile = CreateFileW(L"C:\\log.txt", GENERIC_READ | GENERIC_WRITE | FILE_APPEND_DATA, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE logFile = CreateFileW(L"C:\\log.txt",GENERIC_READ | GENERIC_WRITE|FILE_APPEND_DATA ,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
 
-	auto fileCloser = wil::scope_exit([&]() -> void {if (logFile != INVALID_HANDLE_VALUE) CloseHandle(logFile); });
+	auto fileCloser = wil::scope_exit([&]() -> void {if (logFile != INVALID_HANDLE_VALUE) CloseHandle(logFile);});
 
 	if (logFile != INVALID_HANDLE_VALUE)
 	{
@@ -571,7 +563,7 @@ HRESULT AuthUX::Stop()
 		WriteFile(logFile, &bom, sizeof(bom), NULL, NULL);
 
 		const WCHAR log[] = L"AuthUX::Stop called\n";
-		WriteFile(logFile, log, _ARRAYSIZE(log) * sizeof(WCHAR), NULL, NULL);
+		WriteFile(logFile,log,_ARRAYSIZE(log)*sizeof(WCHAR),NULL,NULL);
 	}
 
 	Wrappers::SRWLock::SyncLockExclusive lock = m_Lock.LockExclusive();
@@ -594,18 +586,18 @@ HRESULT AuthUX::Stop()
 			L"Windows.Foundation.IAsyncAction",
 			BaseTrust,
 			WI::MakeOperationLambda<WI::CNoResult>([asyncReference, this, viewManager](WI::CNoResult& result) -> HRESULT
-				{
-					UNREFERENCED_PARAMETER(asyncReference);
-					RETURN_IF_FAILED(viewManager->Cleanup(result.GetDeferral(result))); // 341
-					return S_OK;
-				})
-			);
+			{
+				UNREFERENCED_PARAMETER(asyncReference);
+				RETURN_IF_FAILED(viewManager->Cleanup(result.GetDeferral(result))); // 341
+				return S_OK;
+			})
+		);
 		RETURN_IF_FAILED(hr); // 426
 
 		if (logFile != INVALID_HANDLE_VALUE)
 		{
 			const WCHAR log[] = L"Created async helper\n";
-			WriteFile(logFile, log, _ARRAYSIZE(log) * sizeof(WCHAR), NULL, NULL);
+			WriteFile(logFile,log,_ARRAYSIZE(log)*sizeof(WCHAR),NULL,NULL);
 		}
 
 		RETURN_IF_FAILED(WaitForCompletion<IAsyncActionCompletedHandler>(cleanupAction.Get())); // 428
@@ -613,7 +605,7 @@ HRESULT AuthUX::Stop()
 		if (logFile != INVALID_HANDLE_VALUE)
 		{
 			const WCHAR log[] = L"Waited for completion async helper\n";
-			WriteFile(logFile, log, _ARRAYSIZE(log) * sizeof(WCHAR), NULL, NULL);
+			WriteFile(logFile,log,_ARRAYSIZE(log)*sizeof(WCHAR),NULL,NULL);
 		}
 	}
 	else
@@ -621,7 +613,7 @@ HRESULT AuthUX::Stop()
 		if (logFile != INVALID_HANDLE_VALUE)
 		{
 			const WCHAR log[] = L"UI NOT STARTED!!\n";
-			WriteFile(logFile, log, _ARRAYSIZE(log) * sizeof(WCHAR), NULL, NULL);
+			WriteFile(logFile,log,_ARRAYSIZE(log)*sizeof(WCHAR),NULL,NULL);
 		}
 	}
 	//RETURN_IF_WIN32_BOOL_FALSE(FreeConsole()); // 431

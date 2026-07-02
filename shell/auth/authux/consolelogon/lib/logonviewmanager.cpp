@@ -10,8 +10,6 @@
 #include "logonframe.h"
 #include "logonguids.h"
 
-#include "Log.h"
-
 using namespace Microsoft::WRL;
 
 LogonViewManager::LogonViewManager()
@@ -43,7 +41,7 @@ HRESULT LogonViewManager::Invoke(LCPD::ICredentialGroup* sender, LCPD::ICredenti
 		RETURN_IF_FAILED(m_webDialogDismissTrigger->DismissWebDialog());
 	}
 
-	LOG_IF_FAILED_MSG(E_FAIL, "INVOKE 1");
+	LOG_IF_FAILED_MSG(E_FAIL,"INVOKE 1");
 	if (m_currentViewType == LogonView::UserSelection
 		|| m_currentViewType == LogonView::CredProvSelection
 		|| m_currentViewType == LogonView::SelectedCredential
@@ -282,13 +280,13 @@ HRESULT LogonViewManager::SetContext(
 	RETURN_IF_FAILED(setContextCompleteEvent.create(wil::EventOptions::ManualReset)); // 339
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, autoLogonManagerRef, userSettingManagerRef, redirectionManagerRef, displayStateProviderRef, bioFeedbackListenerRef, &setContextCompleteEvent]() -> void
-		{
-			UNREFERENCED_PARAMETER(thisRef);
-			SetContextUIThread(
-				autoLogonManagerRef.Get(), userSettingManagerRef.Get(), redirectionManagerRef.Get(),
-				displayStateProviderRef.Get(), bioFeedbackListenerRef.Get());
-			setContextCompleteEvent.SetEvent();
-		});
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		SetContextUIThread(
+			autoLogonManagerRef.Get(), userSettingManagerRef.Get(), redirectionManagerRef.Get(),
+			displayStateProviderRef.Get(), bioFeedbackListenerRef.Get());
+		setContextCompleteEvent.SetEvent();
+	});
 	RETURN_IF_FAILED(hr); // 344
 	WaitForSingleObject(setContextCompleteEvent.get(), INFINITE);
 	return S_OK;
@@ -309,14 +307,14 @@ HRESULT LogonViewManager::Lock(
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [=]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		HRESULT hrInner = LockUIThread(reason, allowDirectUserSwitching, unkRef->Get(), unlockTriggerRef.Get());
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			HRESULT hrInner = LockUIThread(reason, allowDirectUserSwitching, unkRef->Get(), unlockTriggerRef.Get());
-			if (FAILED(hrInner))
-			{
-				unlockTriggerRef->TriggerUnlock();
-			}
-		});
+			unlockTriggerRef->TriggerUnlock();
+		}
+	});
 	RETURN_IF_FAILED(hr); // 364
 	return S_OK;
 }
@@ -335,15 +333,15 @@ HRESULT LogonViewManager::RequestCredentials(
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, reason, flags, unkRef, completion]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IRequestCredentialsData>> deferral = completion;
+		HRESULT hrInner = RequestCredentialsUIThread(reason, flags, unkRef->Get(), deferral);
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IRequestCredentialsData>> deferral = completion;
-			HRESULT hrInner = RequestCredentialsUIThread(reason, flags, unkRef->Get(), deferral);
-			if (FAILED(hrInner))
-			{
-				deferral.Complete(hrInner);
-			}
-		});
+			deferral.Complete(hrInner);
+		}
+	});
 	RETURN_IF_FAILED(hr); // 382
 	return S_OK;
 }
@@ -367,15 +365,15 @@ HRESULT LogonViewManager::ReportResult(
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, reason, ntStatus, ntSubStatus, samCompatibleUserNameRef, displayNameRef, userSidRef, completion]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IReportCredentialsData>> deferral = completion;
+		HRESULT hrInner = ReportResultUIThread(reason, ntStatus, ntSubStatus, samCompatibleUserNameRef->Get(), displayNameRef->Get(), userSidRef->Get(), deferral);
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IReportCredentialsData>> deferral = completion;
-			HRESULT hrInner = ReportResultUIThread(reason, ntStatus, ntSubStatus, samCompatibleUserNameRef->Get(), displayNameRef->Get(), userSidRef->Get(), deferral);
-			if (FAILED(hrInner))
-			{
-				deferral.Complete(hrInner);
-			}
-		});
+			deferral.Complete(hrInner);
+		}
+	});
 	RETURN_IF_FAILED(hr); // 409
 	return S_OK;
 }
@@ -387,10 +385,10 @@ HRESULT LogonViewManager::ClearCredentialState()
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [=]() -> void
-		{
-			UNREFERENCED_PARAMETER(thisRef);
-			ClearCredentialStateUIThread();
-		});
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		ClearCredentialStateUIThread();
+	});
 	RETURN_IF_FAILED(hr); // 421
 	return S_OK;
 }
@@ -409,15 +407,15 @@ HRESULT LogonViewManager::DisplayStatus(LC::LogonUIState state, HSTRING status, 
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, state, statusRef, completion]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CNoResult> deferral = completion;
+		HRESULT hrInner = DisplayStatusUIThread(state, statusRef->Get(), deferral);
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CNoResult> deferral = completion;
-			HRESULT hrInner = DisplayStatusUIThread(state, statusRef->Get(), deferral);
-			if (FAILED(hrInner))
-			{
-				deferral.Complete(hrInner);
-			}
-		});
+			deferral.Complete(hrInner);
+		}
+	});
 	RETURN_IF_FAILED(hr); // 464
 	return S_OK;
 }
@@ -443,15 +441,15 @@ HRESULT LogonViewManager::DisplayMessage(
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, messageMode, messageBoxFlags, captionRef, messageRef, completion]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IMessageDisplayResult>> deferral = completion;
+		HRESULT hrInner = DisplayMessageUIThread(messageMode, messageBoxFlags, captionRef->Get(), messageRef->Get(), deferral);
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IMessageDisplayResult>> deferral = completion;
-			HRESULT hrInner = DisplayMessageUIThread(messageMode, messageBoxFlags, captionRef->Get(), messageRef->Get(), deferral);
-			if (FAILED(hrInner))
-			{
-				deferral.Complete(hrInner);
-			}
-		});
+			deferral.Complete(hrInner);
+		}
+	});
 	RETURN_IF_FAILED(hr); // 494
 	return S_OK;
 }
@@ -477,15 +475,15 @@ HRESULT LogonViewManager::DisplayCredentialError(
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, ntsStatus, ntsSubStatus, messageBoxFlags, captionRef, messageRef, completion]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IMessageDisplayResult>> deferral = completion;
+		HRESULT hrInner = DisplayCredentialErrorUIThread(ntsStatus, ntsSubStatus, messageBoxFlags, captionRef->Get(), messageRef->Get(), deferral);
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IMessageDisplayResult>> deferral = completion;
-			HRESULT hrInner = DisplayCredentialErrorUIThread(ntsStatus, ntsSubStatus, messageBoxFlags, captionRef->Get(), messageRef->Get(), deferral);
-			if (FAILED(hrInner))
-			{
-				deferral.Complete(hrInner);
-			}
-		});
+			deferral.Complete(hrInner);
+		}
+	});
 	RETURN_IF_FAILED(hr); // 524
 	return S_OK;
 }
@@ -499,15 +497,15 @@ HRESULT LogonViewManager::ShowSecurityOptions(
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, options, completion]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::ILogonUISecurityOptionsResult>> deferral = completion;
+		HRESULT hrInner = ShowSecurityOptionsUIThread(options, deferral);
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::ILogonUISecurityOptionsResult>> deferral = completion;
-			HRESULT hrInner = ShowSecurityOptionsUIThread(options, deferral);
-			if (FAILED(hrInner))
-			{
-				deferral.Complete(hrInner);
-			}
-		});
+			deferral.Complete(hrInner);
+		}
+	});
 	RETURN_IF_FAILED(hr); // 439
 	return S_OK;
 }
@@ -520,10 +518,10 @@ HRESULT LogonViewManager::WebDialogDisplayed(LC::IWebDialogDismissTrigger* dismi
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, webDialogDismissTriggerRef]() -> void
-		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WebDialogDisplayedUIThread(webDialogDismissTriggerRef.Get());
-		});
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WebDialogDisplayedUIThread(webDialogDismissTriggerRef.Get());
+	});
 	RETURN_IF_FAILED(hr);
 	return S_OK;
 }
@@ -535,15 +533,15 @@ HRESULT LogonViewManager::Cleanup(WI::AsyncDeferral<WI::CNoResult> completion)
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = BeginInvoke(m_Dispatcher.Get(), [thisRef, this, completion]() -> void
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CNoResult> deferral = completion;
+		HRESULT hrInner = CleanupUIThread(deferral);
+		if (FAILED(hrInner))
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CNoResult> deferral = completion;
-			HRESULT hrInner = CleanupUIThread(deferral);
-			if (FAILED(hrInner))
-			{
-				deferral.Complete(hrInner);
-			}
-		});
+			deferral.Complete(hrInner);
+		}
+	});
 	RETURN_IF_FAILED(hr); // 542
 	return S_OK;
 }
@@ -607,7 +605,6 @@ HRESULT LogonViewManager::RequestCredentialsUIThread(
 	LC::LogonUIRequestReason reason, LC::LogonUIFlags flags, HSTRING unk,
 	WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IRequestCredentialsData>> completion)
 {
-	LOG_SCOPE();
 	auto completeOnFailure = wil::scope_exit([this]() -> void { m_requestCredentialsComplete->Complete(E_UNEXPECTED); });
 
 	//if (m_unlockTrigger.Get())
@@ -620,7 +617,6 @@ HRESULT LogonViewManager::RequestCredentialsUIThread(
 	m_requestCredentialsComplete = wil::make_unique_nothrow<WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IRequestCredentialsData>>>(completion);
 	RETURN_IF_NULL_ALLOC(m_requestCredentialsComplete); // 598
 
-	AuthLog::Write(L"RequestCredentialsUIThread: reason=%d hasCachedSerialization=%d", reason, m_cachedSerialization.Get() ? 1 : 0);
 	if (m_cachedSerialization.Get())
 	{
 		ComPtr<LC::IRequestCredentialsDataFactory> factory;
@@ -651,20 +647,20 @@ template <typename TDelegateInterface, typename TOperation, typename TFunc>
 HRESULT StartOperationAndThen(TOperation* pOperation, TFunc&& func)
 {
 	ComPtr<TDelegateInterface> spCallback = Callback<TDelegateInterface>([func](TOperation* pOperation, AsyncStatus status)
+	{
+		HRESULT hr = S_OK;
+		if (status != AsyncStatus::Completed)
 		{
-			HRESULT hr = S_OK;
-			if (status != AsyncStatus::Completed)
+			ComPtr<IAsyncInfo> spAsyncInfo;
+			hr = pOperation->QueryInterface(IID_PPV_ARGS(&spAsyncInfo));
+			if (SUCCEEDED(hr))
 			{
-				ComPtr<IAsyncInfo> spAsyncInfo;
-				hr = pOperation->QueryInterface(IID_PPV_ARGS(&spAsyncInfo));
-				if (SUCCEEDED(hr))
-				{
-					spAsyncInfo->get_ErrorCode(&hr);
-				}
+				spAsyncInfo->get_ErrorCode(&hr);
 			}
-			func(hr, pOperation);
-			return S_OK;
-		});
+		}
+		func(hr, pOperation);
+		return S_OK;
+	});
 
 	HRESULT hr;
 	if (spCallback.Get())
@@ -696,31 +692,31 @@ HRESULT LogonViewManager::ReportResultUIThread(
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = StartOperationAndThen<WF::IAsyncOperationCompletedHandler<LCPD::ReportResultInfo*>>(asyncOp.Get(), [completion, thisRef, this](HRESULT hrAction, WF::IAsyncOperation<LCPD::ReportResultInfo*>* asyncOp) -> HRESULT
-		{
-			UNREFERENCED_PARAMETER(thisRef);
-			WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IReportCredentialsData>> completionRef = completion;
-			auto completeOnFailure = wil::scope_exit([&completionRef]() -> void { completionRef.Complete(E_UNEXPECTED); });
-			RETURN_IF_FAILED(hrAction);
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IReportCredentialsData>> completionRef = completion;
+		auto completeOnFailure = wil::scope_exit([&completionRef]() -> void { completionRef.Complete(E_UNEXPECTED); });
+		RETURN_IF_FAILED(hrAction);
 
-			ComPtr<LCPD::IReportResultInfo> resultInfo;
-			RETURN_IF_FAILED(asyncOp->GetResults(&resultInfo));
+		ComPtr<LCPD::IReportResultInfo> resultInfo;
+		RETURN_IF_FAILED(asyncOp->GetResults(&resultInfo));
 
-			Wrappers::HString statusMessage;
-			RETURN_IF_FAILED(resultInfo->get_StatusMessage(statusMessage.ReleaseAndGetAddressOf()));
+		Wrappers::HString statusMessage;
+		RETURN_IF_FAILED(resultInfo->get_StatusMessage(statusMessage.ReleaseAndGetAddressOf()));
 
-			ComPtr<LC::IReportCredentialsDataFactory> factory;
-			RETURN_IF_FAILED(WF::GetActivationFactory(
-				Wrappers::HStringReference(RuntimeClass_Windows_Internal_UI_Logon_Controller_ReportCredentialsData).Get(), &factory));
+		ComPtr<LC::IReportCredentialsDataFactory> factory;
+		RETURN_IF_FAILED(WF::GetActivationFactory(
+			Wrappers::HStringReference(RuntimeClass_Windows_Internal_UI_Logon_Controller_ReportCredentialsData).Get(), &factory));
 
-			ComPtr<LC::IReportCredentialsData> resultData;
-			RETURN_IF_FAILED(factory->CreateReportCredentialsData(LC::LogonUICredProvResponse_LogonUIResponseDefault, statusMessage.Get(), &resultData)); // 667
+		ComPtr<LC::IReportCredentialsData> resultData;
+		RETURN_IF_FAILED(factory->CreateReportCredentialsData(LC::LogonUICredProvResponse_LogonUIResponseDefault, statusMessage.Get(), &resultData)); // 667
 
-			m_lastReportResultInfo = resultInfo;
-			completionRef.GetResult().Set(resultData.Get());
-			completionRef.Complete(S_OK);
-			completeOnFailure.release();
-			return S_OK;
-		});
+		m_lastReportResultInfo = resultInfo;
+		completionRef.GetResult().Set(resultData.Get());
+		completionRef.Complete(S_OK);
+		completeOnFailure.release();
+		return S_OK;
+	});
 	RETURN_IF_FAILED(hr); // 667
 	return S_OK;
 }
@@ -729,7 +725,7 @@ HRESULT LogonViewManager::ShowSecurityOptionsUIThread(
 	LC::LogonUISecurityOptions options,
 	WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::ILogonUISecurityOptionsResult>> completion)
 {
-	CLogonFrame::GetSingleton()->ShowSecurityOptions(options, completion);
+	CLogonFrame::GetSingleton()->ShowSecurityOptions(options,completion);
 
 	m_currentViewType = LogonView::SecurityOptions;
 	return S_OK;
@@ -765,7 +761,7 @@ HRESULT LogonViewManager::DisplayMessageUIThread(
 	RETURN_IF_FAILED(m_redirectionManager->RedirectMessage(caption, message, messageBoxFlags, &redirectResult, &errorResponse)); // 733
 
 	if (errorResponse == LC::LogonErrorRedirectorResponse_HandledDoNotShowLocally
-		|| errorResponse == LC::LogonErrorRedirectorResponse_HandledDoNotShowLocallyStartOver)
+		|| errorResponse == LC::LogonErrorRedirectorResponse_HandledDoNotShowLocallyStartOver)	
 	{
 		ComPtr<LC::IMessageDisplayResultFactory> factory;
 		RETURN_IF_FAILED(WF::GetActivationFactory<ComPtr<LC::IMessageDisplayResultFactory>>(
@@ -887,7 +883,6 @@ HRESULT LogonViewManager::CleanupUIThread(WI::AsyncDeferral<WI::CNoResult> compl
 
 HRESULT LogonViewManager::ShowCredentialView()
 {
-	LOG_SCOPE();
 	if (m_selectedCredential.Get() && m_webDialogVisibilityChangedToken.value)
 	{
 		RETURN_IF_FAILED(m_selectedCredential->remove_WebDialogVisibilityChanged(m_webDialogVisibilityChangedToken));
@@ -925,7 +920,6 @@ HRESULT LogonViewManager::ShowCredentialView()
 		m_selectedCredentialChangedToken.value = 0;
 	}
 
-	AuthLog::Write(L"ShowCredentialView: get_UsersAndV1Credentials");
 	ComPtr<WFC::IObservableVector<IInspectable*>> observableUsersAndCreds;
 	RETURN_IF_FAILED(m_credProvDataModel->get_UsersAndV1Credentials(&observableUsersAndCreds));
 
@@ -934,11 +928,9 @@ HRESULT LogonViewManager::ShowCredentialView()
 
 	UINT size = 0;
 	RETURN_IF_FAILED(usersAndCreds->get_Size(&size));
-	AuthLog::Write(L"ShowCredentialView: %u entries", size);
 
 	for (UINT i = 0; i < size; i++)
 	{
-		AuthLog::Write(L"ShowCredentialView: entry %u of %u", i, size);
 		ComPtr<IInspectable> data;
 		RETURN_IF_FAILED(usersAndCreds->GetAt(i, &data));
 
@@ -948,8 +940,8 @@ HRESULT LogonViewManager::ShowCredentialView()
 			Wrappers::HString label;
 			RETURN_IF_FAILED(m_selectedCredential->get_LogoLabel(label.ReleaseAndGetAddressOf()));
 
-			LOG_HR_MSG(E_FAIL, "added credential %s\n", label.GetRawBuffer(nullptr));
-			CLogonFrame::GetSingleton()->m_LogonUserList->AddTileFromData(m_selectedCredential, nullptr, label);
+			LOG_HR_MSG(E_FAIL,"added credential %s\n", label.GetRawBuffer(nullptr));
+			CLogonFrame::GetSingleton()->m_LogonUserList->AddTileFromData(m_selectedCredential,nullptr,label);
 
 			continue;
 		}
@@ -980,7 +972,7 @@ HRESULT LogonViewManager::ShowCredentialView()
 			for (UINT x = 0; x < credsize; x++)
 			{
 				ComPtr<LCPD::ICredential> cred;
-				RETURN_IF_FAILED(credentials->GetAt(i, &cred));
+				RETURN_IF_FAILED(credentials->GetAt(x, &cred));
 
 				GUID guid;
 				RETURN_IF_FAILED(cred->get_ProviderId(&guid));
@@ -992,13 +984,13 @@ HRESULT LogonViewManager::ShowCredentialView()
 					break;
 				}
 			}
-			LOG_HR_MSG(E_FAIL, "DEFAULTING TO PASSWORD CRED for %s\n", userName.GetRawBuffer(nullptr));
+			LOG_HR_MSG(E_FAIL,"DEFAULTING TO PASSWORD CRED for %s\n", userName.GetRawBuffer(nullptr));
 		}
 
-		RETURN_HR_IF_NULL_MSG(E_FAIL, m_selectedCredential.Get(), "FAILED TO GET CREDENTIAL FOR USER");
+		RETURN_HR_IF_NULL_MSG(E_FAIL,m_selectedCredential.Get(),"FAILED TO GET CREDENTIAL FOR USER");
 
-		LOG_HR_MSG(E_FAIL, "selected Cred for %s\n", userName.GetRawBuffer(nullptr));
-		CLogonFrame::GetSingleton()->m_LogonUserList->AddTileFromData(m_selectedCredential, user, userName);
+		LOG_HR_MSG(E_FAIL,"selected Cred for %s\n", userName.GetRawBuffer(nullptr));
+		CLogonFrame::GetSingleton()->m_LogonUserList->AddTileFromData(m_selectedCredential,user,userName);
 
 	}
 
@@ -1034,7 +1026,7 @@ HRESULT LogonViewManager::ShowCredentialView()
 			RETURN_IF_FAILED(credentials->add_VectorChanged(this, &m_credentialsChangedToken)); // 879
 
 			RETURN_IF_FAILED(m_selectedGroup->add_SelectedCredentialChanged(this, &m_selectedCredentialChangedToken)); // 881
-			LOG_HR_MSG(E_FAIL, "called add_SelectedCredentialChanged");
+			LOG_HR_MSG(E_FAIL,"called add_SelectedCredentialChanged");
 
 			RETURN_IF_FAILED(m_selectedGroup->get_SelectedCredential(&m_selectedCredential)); // 883
 		}
@@ -1053,11 +1045,11 @@ HRESULT LogonViewManager::ShowCredentialView()
 			}
 		}
 
-		LOG_HR_MSG(E_FAIL, "there is a selectedUserOrCred %s , we should zoom it!\n", userName.GetRawBuffer(nullptr));
+		LOG_HR_MSG(E_FAIL,"there is a selectedUserOrCred %s , we should zoom it!\n", userName.GetRawBuffer(nullptr));
 
 		auto tileToZoom = CLogonFrame::GetSingleton()->m_LogonUserList->FindTileByCredential(m_selectedCredential);
 
-		RETURN_HR_IF_NULL_MSG(E_FAIL, tileToZoom, "FAILED TO FIND TILE FOR SELECTEDCREDENTIAL");
+		RETURN_HR_IF_NULL_MSG(E_FAIL,tileToZoom,"FAILED TO FIND TILE FOR SELECTEDCREDENTIAL");
 
 		CLogonFrame::GetSingleton()->m_LogonUserList->ZoomTile(tileToZoom);
 
@@ -1065,11 +1057,11 @@ HRESULT LogonViewManager::ShowCredentialView()
 		RETURN_IF_FAILED(MakeAndInitialize<OptionalDependencyProvider>(&optionalDependencyProvider, m_currentReason, m_autoLogonManager.Get(), m_userSettingManager.Get(), m_displayStateProvider.Get())); // 1084
 
 		ComPtr<LCPD::ICredProvDefaultSelector> defaultSelector;
-		RETURN_IF_FAILED(optionalDependencyProvider->GetOptionalDependency(LCPD::OptionalDependencyKind_DefaultSelector, &defaultSelector));
+		RETURN_IF_FAILED(optionalDependencyProvider->GetOptionalDependency(LCPD::OptionalDependencyKind_DefaultSelector,&defaultSelector));
 
 		BOOLEAN bautosubmit = false;
 		if (selectedUser)
-			RETURN_IF_FAILED(defaultSelector->AllowAutoSubmitOnSelection(selectedUser.Get(), &bautosubmit));
+			RETURN_IF_FAILED(defaultSelector->AllowAutoSubmitOnSelection(selectedUser.Get(),&bautosubmit));
 
 		BOOLEAN bIsLocalNoPassword = false;
 		if (selectedUser)
@@ -1091,7 +1083,7 @@ HRESULT LogonViewManager::ShowCredentialView()
 HRESULT LogonViewManager::ShowStatusView(HSTRING status)
 {
 	CLogonFrame::GetSingleton()->ShowStatusMessage(WindowsGetStringRawBuffer(status, nullptr));
-
+	
 	m_currentViewType = LogonView::Status;
 	return S_OK;
 }
@@ -1100,7 +1092,7 @@ HRESULT LogonViewManager::ShowMessageView(
 	HSTRING caption, HSTRING message, UINT messageBoxFlags,
 	WI::AsyncDeferral<WI::CMarshaledInterfaceResult<LC::IMessageDisplayResult>> completion)
 {
-	CLogonFrame::GetSingleton()->DisplayLogonDialog(WindowsGetStringRawBuffer(caption, nullptr), WindowsGetStringRawBuffer(message, nullptr), messageBoxFlags, completion);
+	CLogonFrame::GetSingleton()->DisplayLogonDialog(WindowsGetStringRawBuffer(caption,nullptr),WindowsGetStringRawBuffer(message,nullptr),messageBoxFlags,completion);
 
 	m_currentViewType = LogonView::Message;
 	return S_OK;
@@ -1108,7 +1100,7 @@ HRESULT LogonViewManager::ShowMessageView(
 
 HRESULT LogonViewManager::ShowSerializationFailedView(HSTRING caption, HSTRING message)
 {
-	CLogonFrame::GetSingleton()->DisplayLogonDialog(WindowsGetStringRawBuffer(caption, nullptr), WindowsGetStringRawBuffer(message, nullptr), 16 | (int)MessageOptionFlag::Ok);
+	CLogonFrame::GetSingleton()->DisplayLogonDialog(WindowsGetStringRawBuffer(caption,nullptr),WindowsGetStringRawBuffer(message,nullptr),16 | (int)MessageOptionFlag::Ok);
 
 	m_currentViewType = LogonView::SerializationFailed;
 	return S_OK;
@@ -1116,8 +1108,6 @@ HRESULT LogonViewManager::ShowSerializationFailedView(HSTRING caption, HSTRING m
 
 HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason reason, BOOLEAN allowDirectUserSwitching, HSTRING unk)
 {
-	LOG_SCOPE();
-	AuthLog::Write(L"StartCredProvsIfNecessary: reason=%d hasModel=%d resetRequired=%d initialized=%d", reason, m_credProvDataModel.Get() ? 1 : 0, m_isCredentialResetRequired ? 1 : 0, m_credProvInitialized ? 1 : 0);
 	LCPD::CredProvScenario scenario = LCPD::CredProvScenario_Logon;
 	if (reason == LC::LogonUIRequestReason_LogonUIUnlock)
 	{
@@ -1134,7 +1124,7 @@ HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason rea
 		{
 			ComPtr<WF::IAsyncAction> resetAction;
 #if CONSOLELOGON_FOR >= CONSOLELOGON_FOR_19h1
-			RETURN_IF_FAILED(m_credProvDataModel->ResetAsync(scenario, LCPD::SupportedFeatureFlags_0, nullptr, &resetAction)); // 1124
+			RETURN_IF_FAILED(m_credProvDataModel->ResetAsync(scenario,LCPD::SupportedFeatureFlags_0, nullptr, &resetAction)); // 1124
 #else
 			RETURN_IF_FAILED(m_credProvDataModel->ResetAsync(scenario, LCPD::SupportedFeatureFlags_0, &resetAction)); // 1124
 #endif
@@ -1143,25 +1133,25 @@ HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason rea
 			ComPtr<LogonViewManager> thisRef = this;
 
 			HRESULT hr = StartOperationAndThen<WF::IAsyncActionCompletedHandler>(resetAction.Get(), [thisRef, this](HRESULT hrAction, WF::IAsyncAction* asyncOp) -> HRESULT
+			{
+				UNREFERENCED_PARAMETER(thisRef);
+				auto completeOnFailure = wil::scope_exit([this]() -> void
 				{
-					UNREFERENCED_PARAMETER(thisRef);
-					auto completeOnFailure = wil::scope_exit([this]() -> void
-						{
-							if (m_requestCredentialsComplete)
-								m_requestCredentialsComplete->Complete(E_UNEXPECTED);
-						});
-
-					if (SUCCEEDED(hrAction))
-					{
-						m_credProvInitialized = true;
-						hrAction = ShowCredentialView();
-					}
-
-					RETURN_IF_FAILED(hrAction); // 1147
-					m_isCredentialResetRequired = false;
-					completeOnFailure.release();
-					return S_OK;
+					if (m_requestCredentialsComplete)
+						m_requestCredentialsComplete->Complete(E_UNEXPECTED);
 				});
+
+				if (SUCCEEDED(hrAction))
+				{
+					m_credProvInitialized = true;
+					hrAction = ShowCredentialView();
+				}
+
+				RETURN_IF_FAILED(hrAction); // 1147
+				m_isCredentialResetRequired = false;
+				completeOnFailure.release();
+				return S_OK;
+			});
 			RETURN_IF_FAILED(hr); // 1147
 		}
 		else if (m_credProvInitialized)
@@ -1205,54 +1195,41 @@ HRESULT LogonViewManager::StartCredProvsIfNecessary(LC::LogonUIRequestReason rea
 	ComPtr<WF::IAsyncAction> initAction;
 	LANGID langID = 0;
 	RETURN_IF_FAILED(m_userSettingManager->get_LangID(&langID)); // 1098
-	AuthLog::Write(L"StartCredProvsIfNecessary: calling InitializeAsync");
-	AuthLog::DumpCredentialProviders();
 #if CONSOLELOGON_FOR >= CONSOLELOGON_FOR_19h1
 	RETURN_IF_FAILED(m_credProvDataModel->InitializeAsync(scenario, LCPD::SupportedFeatureFlags_0, langID, unk, &initAction)); // 1099
 #else
 	RETURN_IF_FAILED(m_credProvDataModel->InitializeAsync(scenario, LCPD::SupportedFeatureFlags_0, langID, &initAction)); // 1099
 #endif
-	AuthLog::ArmWatchdog(L"InitializeAsync", 20000);
 
 	ComPtr<LogonViewManager> thisRef = this;
 
 	HRESULT hr = StartOperationAndThen<WF::IAsyncActionCompletedHandler>(initAction.Get(), [thisRef, this](HRESULT hrAction, WF::IAsyncAction* asyncOp) -> HRESULT
+	{
+		UNREFERENCED_PARAMETER(thisRef);
+		auto completeOnFailure = wil::scope_exit([this]() -> void
 		{
-			UNREFERENCED_PARAMETER(thisRef);
-			AuthLog::DisarmWatchdog();
-			AuthLog::Write(L"InitializeAsync completed, hr=0x%08X", hrAction);
-			auto completeOnFailure = wil::scope_exit([this]() -> void
-				{
-					if (m_requestCredentialsComplete)
-						m_requestCredentialsComplete->Complete(E_UNEXPECTED);
-				});
-
-			if (SUCCEEDED(hrAction))
-			{
-				m_credProvInitialized = true;
-				hrAction = OnCredProvInitComplete();
-			}
-
-			RETURN_IF_FAILED(hrAction); // 1119
-			completeOnFailure.release();
-			return S_OK;
+			if (m_requestCredentialsComplete)
+				m_requestCredentialsComplete->Complete(E_UNEXPECTED);
 		});
+
+		if (SUCCEEDED(hrAction))
+		{
+			m_credProvInitialized = true;
+			hrAction = OnCredProvInitComplete();
+		}
+
+		RETURN_IF_FAILED(hrAction); // 1119
+		completeOnFailure.release();
+		return S_OK;
+	});
 	RETURN_IF_FAILED(hr); // 1119
 	return S_OK;
 }
 
 HRESULT LogonViewManager::OnCredProvInitComplete()
 {
-	LOG_SCOPE();
 	ComPtr<WFC::IObservableVector<IInspectable*>> usersAndV1Creds;
 	RETURN_IF_FAILED(m_credProvDataModel->get_UsersAndV1Credentials(&usersAndV1Creds)); // 1177
-
-	UINT userCount = 0;
-	ComPtr<WFC::IVector<IInspectable*>> usersVector;
-	if (SUCCEEDED(usersAndV1Creds.As(&usersVector)))
-		usersVector->get_Size(&userCount);
-	AuthLog::Write(L"OnCredProvInitComplete: showOnInit=%d users=%u", m_showCredentialViewOnInitComplete ? 1 : 0, userCount);
-
 	RETURN_IF_FAILED(usersAndV1Creds->add_VectorChanged(this, &m_usersChangedToken)); // 1178
 	RETURN_IF_FAILED(m_credProvDataModel->add_SelectedUserOrV1CredentialChanged(this, &m_selectedUserChangeToken)); // 1179
 	if (m_showCredentialViewOnInitComplete)
